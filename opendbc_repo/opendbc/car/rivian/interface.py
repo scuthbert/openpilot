@@ -25,16 +25,12 @@ class CarInterface(CarInterfaceBase):
     if 0x321 not in fingerprint[0]:
       ret.flags |= RivianFlags.GEN2.value
 
-    # no angle upgrade installed
-    if 0x1310 not in fingerprint[1]:
-      ret.dashcamOnly = True
-
     ret.steerActuatorDelay = 0.1
     ret.steerAtStandstill = True
     ret.steerLimitTimer = 0.8  # 0.4 flagged normal low-speed turn-in lag as steerSaturated
     CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-    # torque is the primary channel, the angle command comes in via actuators.steeringAngleDeg
+    # torque-only build: no angle actuator, steering goes through ACM_lkaHbaCmd torque
     ret.steerControlType = structs.CarParams.SteerControlType.torque
     ret.radarUnavailable = True
 

@@ -188,11 +188,6 @@ class Controls(ControlsExt):
         lac_log = angle_log
       else:
         self.LaC_angle.reset()
-        # Publish one lateralControlState variant for the whole drive. Flipping between torqueState and angleState
-        # within a segment lines up with Connect failing to process that segment. Keep the torque controller's
-        # saturation so torque-mode steer-saturated alerts and lagd behave as before.
-        angle_log.saturated = lac_log.saturated
-        lac_log = angle_log
     if self.CP.steerControlType == car.CarParams.SteerControlType.curvature:
       actuators.curvature = float(lateral_output)
     else:
@@ -268,7 +263,7 @@ class Controls(ControlsExt):
     CC.driverMonitoringEscalation = cs.forceDecel
 
     lat_tuning = self.CP.lateralTuning.which()
-    if self.CP.steerControlType == car.CarParams.SteerControlType.angle or self.LaC_angle is not None:
+    if self.CP.steerControlType == car.CarParams.SteerControlType.angle or self.angle_steering:
       cs.lateralControlState.angleState = lac_log
     elif self.CP.steerControlType == car.CarParams.SteerControlType.curvature:
       cs.lateralControlState.curvatureState = lac_log
