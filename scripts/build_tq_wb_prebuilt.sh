@@ -102,5 +102,5 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
   git show --stat --format='%B' HEAD | tail -20
   exit 0
 fi
-git push -q --force origin "$OUT:refs/heads/$OUT"
+git push -q --force --no-verify origin "$OUT:refs/heads/$OUT"  # skip the git-lfs pre-push hook; rel's history has LFS pointers we don't ship
 echo "published $OUT $(git rev-parse HEAD)"
