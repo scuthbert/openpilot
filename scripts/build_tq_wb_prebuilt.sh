@@ -15,6 +15,9 @@ TORQUE="${TORQUE:-torque}"
 OUT="${OUT:-tq-wb-prebuilt}"
 ORIGIN="${ORIGIN:?set ORIGIN to the push URL of your fork}"
 FORCE="${FORCE:-0}"
+# keep LFS files as pointers: with git-lfs installed (GitHub runners) the checkout would download the
+# 760 MB Chestnut model, and the pointer cleanup below would no longer recognise it
+export GIT_LFS_SKIP_SMUDGE=1
 
 # torque-only Rivian code, copied from torque onto rel
 OVERLAY=(
@@ -139,6 +142,14 @@ while read -r p; do
   [ -n "$p" ] && git rm -q -- "$p"
 done <<<"$lfs_pointers"
 git rm -q -r --ignore-unmatch .gitattributes .lfsconfig .github
+
+# GitHub refuses files over 100 MB, say which instead of failing at the push
+big="$(git ls-files -z | xargs -0 -r find 2>/dev/null -maxdepth 0 -type f -size +95M || true)"
+if [ -n "$big" ]; then
+  echo "::error::files too big for GitHub, not publishing:"
+  echo "$big"
+  exit 1
+fi
 
 # fail fast on a syntax error
 python3 -m py_compile "${OVERLAY[@]}" openpilot/selfdrive/modeld/modeld.py openpilot/sunnypilot/modeld_v2/modeld.py
