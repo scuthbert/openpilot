@@ -144,15 +144,21 @@ git rm -q -r --ignore-unmatch .gitattributes .lfsconfig .github
 python3 -m py_compile "${OVERLAY[@]}" openpilot/selfdrive/modeld/modeld.py openpilot/sunnypilot/modeld_v2/modeld.py
 
 git add -A
-git commit -q -m "tq-wb prebuilt: EVPilot rel with the torque-only Rivian code
+# a snapshot with no parent: evpilotgo/openpilot isn't in this fork's network, so GitHub doesn't have rel's
+# history and rejects a shallow push whose parent it never saw. The comma installs and updates the branch as a snapshot.
+build="$(git commit-tree "$(git write-tree)" -F - <<EOF
+tq-wb prebuilt: EVPilot rel with the torque-only Rivian code
 
 Merges torque's carcontroller.py, ext_controller.py, interface.py and
 controlsd.py onto the prebuilt rel (no angle-upgrade dashcam gate), keeping
-rel's changes to them since the last build. Only
-waits for Chestnut when one enumerates, and drops the LFS big-model pointers.
+rel's changes to them since the last build. Only waits for Chestnut when one
+enumerates, and drops the LFS big-model pointers.
 
 Built-From-Rel: $rel_sha
-Built-From-Torque: $torque_sha"
+Built-From-Torque: $torque_sha
+EOF
+)"
+git checkout -q -B "$OUT" "$build"
 
 if [ "${DRY_RUN:-0}" = "1" ]; then
   git show --stat --format='%B' HEAD | tail -20
