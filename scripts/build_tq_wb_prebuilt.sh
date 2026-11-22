@@ -57,8 +57,9 @@ if [ -z "$base_rel" ] || [ -z "$base_torque" ]; then
   echo "::error::no previous build to merge from, set BASE_REL and BASE_TORQUE to a rel/torque pair known to go together"
   exit 1
 fi
-# trees only, blobs are fetched as needed
-git fetch -q --depth 1 --filter=blob:none up "$base_rel" "$base_torque"
+# full objects: a partial (--filter) fetch makes up a promisor remote, and the push then tries to
+# lazily fetch objects only the fork has from it ("not our ref")
+git fetch -q --depth 1 up "$base_rel" "$base_torque"
 echo "base rel    $base_rel"
 echo "base torque $base_torque"
 
