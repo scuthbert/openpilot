@@ -1,0 +1,62 @@
+from opendbc.car import get_safety_config, structs
+from opendbc.car.interfaces import CarInterfaceBase
+from opendbc.car.rivian.carcontroller import CarController
+from opendbc.car.rivian.carstate import CarState
+from opendbc.car.rivian.radar_interface import RadarInterface
+from opendbc.car.rivian.values import RivianFlags, RivianSafetyFlags
+from opendbc.sunnypilot.car.rivian.values import RivianFlagsSP
+
+
+class CarInterface(CarInterfaceBase):
+  CarState = CarState
+  CarController = CarController
+  RadarInterface = RadarInterface
+
+  # the EPAS and VDM fault on a stale or skipped control message, re-send frames the panda blocked
+  RESEND_BLOCKED = True
+
+  @staticmethod
+  def _get_params(ret: structs.CarParams, candidate, fingerprint, car_fw, alpha_long, is_release, docs) -> structs.CarParams:
+    ret.brand = "rivian"
+
+    ret.safetyConfigs = [get_safety_config(structs.CarParams.SafetyModel.rivian)]
+
+    # GEN2 (2025+) doesn't have SCCM_WheelTouch on the bus
+    if 0x321 not in fingerprint[0]:
+      ret.flags |= RivianFlags.GEN2.value
+
+    ret.steerActuatorDelay = 0.1
+    ret.steerAtStandstill = True
+    ret.steerLimitTimer = 0.8  # 0.4 flagged normal low-speed turn-in lag as steerSaturated
+    CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+
+    # torque-only build: no angle actuator, steering goes through ACM_lkaHbaCmd torque
+    ret.steerControlType = structs.CarParams.SteerControlType.torque
+    ret.radarUnavailable = True
+
+    # TODO is GEN2 the same?
+    ret.alphaLongitudinalAvailable = docs or not (ret.flags & RivianFlags.GEN2)
+    if alpha_long and ret.alphaLongitudinalAvailable:
+      ret.openpilotLongitudinalControl = True
+      ret.safetyConfigs[0].safetyParam |= RivianSafetyFlags.LONG_CONTROL.value
+
+    ret.longitudinalActuatorDelay = 0.25
+    ret.stopAccel = -0.2
+    ret.longitudinalTuning.kiBP = [0.]
+    ret.longitudinalTuning.kiV = [0.2]
+
+    return ret
+
+  @staticmethod
+  def _get_params_sp(stock_cp: structs.CarParams, ret: structs.CarParamsSP, candidate, fingerprint: dict[int, dict[int, int]],
+                     car_fw: list[structs.CarParams.CarFw], alpha_long: bool, is_release_sp: bool, docs: bool) -> structs.CarParamsSP:
+    if 0x131a in fingerprint[1]:
+      ret.flags |= RivianFlagsSP.LONGITUDINAL_HARNESS_UPGRADE.value
+      stock_cp.radarUnavailable = False
+      stock_cp.alphaLongitudinalAvailable = True
+
+    if alpha_long and stock_cp.alphaLongitudinalAvailable:
+      stock_cp.openpilotLongitudinalControl = True
+      stock_cp.safetyConfigs[0].safetyParam |= RivianSafetyFlags.LONG_CONTROL.value
+
+    return ret
